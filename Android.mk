@@ -425,6 +425,110 @@ LOCAL_MODULE_TAGS         := optional
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
+
+########################### OPLUS AUDIO EXTEND  ###########
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_extend.ko
+LOCAL_MODULE_KBUILD_NAME  := oplus_audio_extend.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
+
+########################### SIPA  ###########################
+#add for sia pa bringup
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_sipa.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/sipa/oplus_audio_sipa.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
+
+########################### SIPA TUNING  ###########################
+#add for sia pa bringup
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_sipa_tuning.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/sipa/oplus_audio_sipa_tuning.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
+
+########################### AUDIO DAEMON KERNEL  ###########################
+#add for audio daemon kernel on QCOM platform
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_daemon.ko
+LOCAL_MODULE_KBUILD_NAME  := oplus_audio_daemon/oplus_audio_daemon.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
+
+########################### AUDIO NETLINK KERNEL  ###########################
+#add for audio netlink kernel communication
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_netlink.ko
+LOCAL_MODULE_KBUILD_NAME  := oplus_audio_netlink/oplus_audio_netlink.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
+
+############################################################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := tfa98xx_v6_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/tfa98xx-v6/tfa98xx_v6_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+############################################################
+
+########################### AW87XXX #############################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := aw87xxx_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/aw87xxx/aw87xxx_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+############################################################
+
+########################### AW882XX #############################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := aw882xx_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/aw882xx/aw882xx_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+############################################################
+
+########################### PA MANAGER  ###########################
+#add for pa manager
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := oplus_audio_pa_manager.ko
+LOCAL_MODULE_KBUILD_NAME  := oplus_speaker_manager/oplus_audio_pa_manager.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+###########################################################
 endif
 ###########################################################
 include $(CLEAR_VARS)

@@ -37,10 +37,21 @@ PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/swr_dmic_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/hdmi_dlkm.ko
 endif
 ifeq ($(call is-board-platform-in-list,sun tuna), true)
-PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/lpass_bt_swr_dlkm.ko
-PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/wcd9378_slave_dlkm.ko \
-PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/wcd9378_dlkm.ko \
-PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/qmp_dlkm.ko
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_extend.ko \
+        $(KERNEL_MODULES_OUT)/lpass_bt_swr_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/wcd9378_slave_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/wcd9378_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/qmp_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/aw882xx_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/tfa98xx_v6_dlkm.ko \
+        $(KERNEL_MODULES_OUT)/oplus_audio_sipa.ko \
+        $(KERNEL_MODULES_OUT)/oplus_audio_sipa_tuning.ko \
+        $(KERNEL_MODULES_OUT)/oplus_audio_pa_manager.ko \
+        $(KERNEL_MODULES_OUT)/aw87xxx_dlkm.ko
+# add for audio daemon kernel on QCOM platform sun
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_daemon.ko
+# add for audio netlink kernel communication
+PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/oplus_audio_netlink.ko
 endif
 ifeq ($(call is-board-platform-in-list,bengal holi blair), true)
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/bolero_cdc_dlkm.ko \

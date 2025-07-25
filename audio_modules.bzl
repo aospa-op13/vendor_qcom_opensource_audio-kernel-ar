@@ -46,6 +46,48 @@ audio_modules.register(
 	],
 )
 audio_modules.register(
+    name = "aw87xxx_dlkm",
+    path = "asoc/codecs/aw87xxx",
+    config_option = "CONFIG_SND_SOC_AW87XXX",
+    srcs = [
+        "aw87xxx_acf_bin.c",
+        "aw87xxx_bin_parse.c",
+        "aw87xxx_device.c",
+        "aw87xxx_dsp.c",
+        "aw87xxx_monitor.c",
+        "aw87xxx.c",
+    ],
+    deps = [":aw87xxx_headers"],
+)
+audio_modules.register(
+    name = "aw882xx_dlkm",
+    path = "asoc/codecs/aw882xx",
+    config_option = "CONFIG_SND_SOC_AW882XX",
+    srcs = [
+        "aw882xx_bin_parse.c",
+        "aw882xx_calib.c",
+        "aw882xx_device.c",
+        "aw882xx_dsp.c",
+        "aw882xx_init.c",
+        "aw882xx_monitor.c",
+        "aw882xx_spin.c",
+        "aw882xx.c",
+    ],
+    deps = [":aw882xx_headers"],
+)
+audio_modules.register(
+    name = "tfa98xx_v6_dlkm",
+    path = "asoc/codecs/tfa98xx-v6",
+    config_option = "CONFIG_SND_SOC_TFA98XX",
+    srcs = [
+        "tfa_container_v6.c",
+        "tfa98xx_v6.c",
+        "tfa_dsp_v6.c",
+        "tfa_init_v6.c",
+    ],
+    deps = [":tfa98xx_headers"],
+)
+audio_modules.register(
     name = "audpkt_ion_dlkm",
     path = DSP_PATH,
     config_option = "CONFIG_AUDIO_PKT_ION",
