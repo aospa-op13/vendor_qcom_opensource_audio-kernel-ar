@@ -3,7 +3,7 @@ ifeq ($(CONFIG_ARCH_SUN), y)
 	export INCS += -include $(AUDIO_ROOT)/config/sunautoconf.h
 endif
 
-obj-y := dsp/ ipc/ soc/ asoc/ asoc/codecs/ asoc/codecs/lpass-cdc/ asoc/codecs/bolero/ asoc/codecs/wcd939x/ asoc/codecs/wsa884x/ asoc/codecs/wcd938x/ asoc/codecs/wsa883x/ asoc/codecs/wcd937x/ asoc/codecs/wcd9378/ asoc/codecs/qmp1000/ asoc/codecs/aw87xxx/ asoc/codecs/aw882xx/ asoc/codecs/tfa98xx-v6/ asoc/codecs/sipa/ oplus_speaker_manager/ oplus_audio_daemon/ oplus_audio_netlink/
+obj-y := dsp/ ipc/ soc/ asoc/ asoc/codecs/ asoc/codecs/lpass-cdc/ asoc/codecs/bolero/ asoc/codecs/wcd939x/ asoc/codecs/wsa884x/ asoc/codecs/wcd938x/ asoc/codecs/wsa883x/ asoc/codecs/wcd937x/ asoc/codecs/wcd9378/ asoc/codecs/qmp1000/ asoc/codecs/aw87xxx/ asoc/codecs/aw882xx/ asoc/codecs/tfa98xx-v6/ asoc/codecs/sipa/ oplus_speaker_manager/ oplus_audio_daemon/ oplus_audio_netlink/ oplus_typec_switch_i2c/
 
 ############ audio extend driver ############
 

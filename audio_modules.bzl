@@ -280,6 +280,8 @@ audio_modules.register(
             ":oplus_speaker_headers",
             ":%b_oplus_audio_pa_manager",
             ":%b_oplus_audio_netlink",
+# Add for oplus_set_sound_card_init_done dependency
+            ":%b_adsp_loader_dlkm",
 	],
 )
 # >>>> ASOC/CODEC MODULES <<<<

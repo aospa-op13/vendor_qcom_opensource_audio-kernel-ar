@@ -848,4 +848,3 @@ const u8 wcd9378_reg_access[] = {
 	[WCD9378_REG(WCD9378_MESSAGE1)]                       = RD_REG,
 	[WCD9378_REG(WCD9378_MESSAGE2)]                       = RD_REG,
 };
-
