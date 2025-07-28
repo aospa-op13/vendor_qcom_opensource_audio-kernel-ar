@@ -18,10 +18,14 @@ ifeq ($(KERNEL_BUILD), 0)
 	ifeq ($(CONFIG_ARCH_KALAMA), y)
 		include $(AUDIO_ROOT)/config/kalamaauto.conf
 		INCS    +=  -include $(AUDIO_ROOT)/config/kalamaautoconf.h
+		-include $(AUDIO_ROOT)/config/opluskalamaauto.conf
+		INCS    +=  -include $(AUDIO_ROOT)/config/opluskalamaautoconf.h
 	endif
 	ifeq ($(CONFIG_ARCH_PINEAPPLE), y)
 		include $(AUDIO_ROOT)/config/pineappleauto.conf
 		INCS    +=  -include $(AUDIO_ROOT)/config/pineappleautoconf.h
+		-include $(AUDIO_ROOT)/config/opluspineappleauto.conf
+		INCS    +=  -include $(AUDIO_ROOT)/config/opluspineappleautoconf.h
 	endif
 endif
 

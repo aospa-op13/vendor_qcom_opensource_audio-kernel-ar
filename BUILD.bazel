@@ -13,6 +13,10 @@ ddk_headers(
         "include/bindings/*.h",
         "include/dsp/*.h",
         "include/ipc/*.h",
+#ifdef CONFIG_OPLUS_FEATURE_MM_FEEDBACK
+#Add for feedback
+        "include/feedback/*.h",
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
         "include/soc/*.h"
     ]),
     includes = ["include"]
@@ -40,9 +44,62 @@ ddk_headers(
     ]),
     includes = ["config"]
 )
+
+# add for oplus audio daemon kernel
+ddk_headers(
+    name = "audio_daemon_headers",
+    hdrs = glob([
+        "oplus_audio_daemon/*.h"
+    ]),
+    includes = ["oplus_audio_daemon"]
+)
+
+# add for oplus audio netlink kernel communication
+ddk_headers(
+    name = "audio_netlink_headers",
+    hdrs = glob([
+        "oplus_audio_netlink/*.h"
+    ]),
+    includes = ["oplus_audio_netlink"]
+)
+
+#ifdef OPLUS_ARCH_EXTENDS
+#add for oplus audio extends driver
+ddk_headers(
+    name = "aw87xxx_headers",
+    hdrs = glob([
+        "asoc/codecs/aw87xxx/*.h"
+    ])
+)
+ddk_headers(
+    name = "aw882xx_headers",
+    hdrs = glob([
+        "asoc/codecs/aw882xx/*.h"
+    ])
+)
+ddk_headers(
+    name = "tfa98xx_headers",
+    hdrs = glob([
+        "asoc/codecs/tfa98xx-v6/*.h"
+    ])
+)
+ddk_headers(
+    name = "sipa_headers",
+    hdrs = glob([
+        "asoc/codecs/sipa/*.h"
+    ])
+)
+ddk_headers(
+    name = "oplus_speaker_headers",
+    hdrs = glob([
+        "oplus_speaker_manager/*.h"
+    ])
+)
+#endif /* OPLUS_ARCH_EXTENDS */
+
 ddk_headers(
     name = "audio_headers",
-    hdrs = [":audio_common_headers",  ":audio_uapi_headers", ":audio_src_headers", ":audio_configs"]
+    hdrs = [":audio_common_headers",  ":audio_uapi_headers", ":audio_src_headers", ":audio_configs", ":audio_daemon_headers", ":audio_netlink_headers", ":aw87xxx_headers", ":aw882xx_headers", ":tfa98xx_headers", ":sipa_headers", ":oplus_speaker_headers"]
 )
 
 load(":build/sun.bzl", "define_sun")

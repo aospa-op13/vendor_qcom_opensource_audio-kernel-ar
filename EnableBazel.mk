@@ -78,6 +78,20 @@ LOCAL_MODULE_KO_DIRS += asoc/codecs/wcd9378/wcd9378_slave_dlkm.ko
 LOCAL_MODULE_KO_DIRS += asoc/codecs/lpass_bt_swr_dlkm.ko
 LOCAL_MODULE_KO_DIRS += asoc/codecs/hdmi_dlkm.ko
 LOCAL_MODULE_KO_DIRS += asoc/codecs/qmp1000/qmp_dlkm.ko
+#ifdef OPLUS_ARCH_EXTENDS
+#add for oplus audio extends driver
+LOCAL_MODULE_KO_DIRS += oplus_audio_extend.ko
+LOCAL_MODULE_KO_DIRS += asoc/codecs/aw882xx/aw882xx_dlkm.ko
+LOCAL_MODULE_KO_DIRS += asoc/codecs/tfa98xx-v6/tfa98xx_v6_dlkm.ko
+LOCAL_MODULE_KO_DIRS += asoc/codecs/sipa/oplus_audio_sipa.ko
+LOCAL_MODULE_KO_DIRS += asoc/codecs/sipa/oplus_audio_sipa_tuning.ko
+LOCAL_MODULE_KO_DIRS += oplus_speaker_manager/oplus_audio_pa_manager.ko
+LOCAL_MODULE_KO_DIRS += asoc/codecs/aw87xxx/aw87xxx_dlkm.ko
+#endif /* OPLUS_ARCH_EXTENDS */
+# add for oplus audio daemon kernel
+LOCAL_MODULE_KO_DIRS += oplus_audio_daemon/oplus_audio_daemon.ko
+# add for oplus audio daemon kernel
+LOCAL_MODULE_KO_DIRS += oplus_audio_netlink/oplus_audio_netlink.ko
 endif
 
 ifeq ($(call is-board-platform-in-list,blair),true)
