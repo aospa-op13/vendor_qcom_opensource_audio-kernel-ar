@@ -96,6 +96,3 @@ obj-$(CONFIG_AUDIO_DAEMON_KERNEL_MTK_HIFI) += oplus_audio_daemon.o
 # add for audio daemon kernel with rv adsp on MTK platform
 obj-$(CONFIG_AUDIO_DAEMON_KERNEL_MTK_RV) += oplus_audio_daemon.o
 oplus_audio_daemon-y := $(AUDIO_DAEMON_OBJS)
-
-# inject some build related information
-DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"
