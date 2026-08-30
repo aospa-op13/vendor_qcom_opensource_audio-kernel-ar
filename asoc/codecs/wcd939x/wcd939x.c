@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -270,7 +270,8 @@ static int wcd939x_hph_xtalk_put(struct snd_kcontrol *kcontrol,
 
 	int value = ucontrol->value.integer.value[0];
 
-	if (value < WCD939X_HPH_MAX && value >= 0)
+	if (value < WCD939X_HPH_MAX && value >= 0 && xtalk < WCD939X_HPH_MAX &&
+			xtalk >= 0)
 		wcd939x->xtalk_enabled[xtalk] = value;
 	else {
 		dev_err(component->dev, "%s: Invalid xtalk value = %d\n", __func__, value);
@@ -293,6 +294,11 @@ static int wcd939x_hph_xtalk_get(struct snd_kcontrol *kcontrol,
 
 	int xtalk = ((struct soc_mixer_control *)
 			kcontrol->private_value)->shift;
+
+	if (xtalk >= WCD939X_HPH_MAX || xtalk < 0) {
+		dev_err(component->dev, "%s: Invalid xtalk value = %d\n", __func__, xtalk);
+		return -EINVAL;
+	}
 
 	ucontrol->value.integer.value[0] = wcd939x->xtalk_enabled[xtalk];
 
@@ -5693,7 +5699,7 @@ static int wcd939x_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(dev, "%s: vdd px supply enable failed!\n",
 				__func__);
-			return ret;
+			goto err_static_supplies;
 		}
 	}
 
@@ -5704,13 +5710,13 @@ static int wcd939x_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_err(dev, "Failed to read port mapping\n");
-		goto err;
+		goto err_supplies;
 	}
 	ret = wcd939x_parse_port_params(dev, "qcom,swr-tx-port-params",
 					CODEC_TX);
 	if (ret) {
 		dev_err(dev, "Failed to read port params\n");
-		goto err;
+		goto err_supplies;
 	}
 
 	mutex_init(&wcd939x->wakeup_lock);
@@ -5733,7 +5739,19 @@ static int wcd939x_probe(struct platform_device *pdev)
 err_lock_init:
 	mutex_destroy(&wcd939x->micb_lock);
 	mutex_destroy(&wcd939x->wakeup_lock);
-err:
+err_supplies:
+	if (msm_cdc_is_ondemand_supply(wcd939x->dev, wcd939x->supplies,
+			pdata->regulator, pdata->num_supplies, "cdc-vdd-px")) {
+		msm_cdc_disable_ondemand_supply(wcd939x->dev,
+				wcd939x->supplies, pdata->regulator,
+				pdata->num_supplies, "cdc-vdd-px");
+	}
+err_static_supplies:
+	msm_cdc_release_supplies(&pdev->dev, wcd939x->supplies,
+				     pdata->regulator,
+				     pdata->num_supplies);
+	pdata->regulator = NULL;
+	pdata->num_supplies = 0;
 	return ret;
 }
 
