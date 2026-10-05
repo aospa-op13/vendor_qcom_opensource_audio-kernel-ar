@@ -29,6 +29,10 @@
 #include "swr-mstr-ctrl.h"
 #include <linux/proc_fs.h>
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#include "feedback/oplus_audio_kernel_fb.h"
+#endif
+
 #define SWR_NUM_PORTS    4 /* TODO - Get this info from DT */
 
 #define SWRM_FRAME_SYNC_SEL    4000 /* 4KHz */
@@ -100,6 +104,10 @@
 #define SAMPLING_RATE_384KHZ  384000
 
 #define SWR_BASECLK_VAL_1_FOR_19P2MHZ  (0x1)
+#define SWRS_DEVID_COMBINE(cls_id, addr_id)	\
+			(((long)(cls_id) << 32) | (addr_id))
+#define WCD9378_TX_DEVID (0x1001170223)
+#define WCD9378_RX_DEVID (0x1001170224)
 
 /* pm runtime auto suspend timer in msecs */
 static int auto_suspend_timer = 500;
@@ -151,6 +159,19 @@ static u32 swr_master_read(struct swr_mstr_ctrl *swrm, unsigned int reg_addr);
 static void swr_master_write(struct swr_mstr_ctrl *swrm, u16 reg_addr, u32 val);
 static int swrm_runtime_resume(struct device *dev);
 static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr);
+
+#ifdef OPLUS_ARCH_EXTENDS
+extern bool oplus_daemon_adsp_ssr(void);
+#define SWRM_FIFO_FAILED_LIMIT_MS 60000
+#define SWR_ADSP_RETRY_COUNT 50
+static ktime_t ssr_time = 0;
+static int adsp_ssr_count = SWR_ADSP_RETRY_COUNT;
+
+static void oplus_daemon_adsp_ssr_work_fn(struct work_struct *work)
+{
+	oplus_daemon_adsp_ssr();
+}
+#endif /* OPLUS_ARCH_EXTENDS */
 
 static u8 swrm_get_clk_div(int mclk_freq, int bus_clk_freq)
 {
@@ -742,6 +763,16 @@ static bool swrm_check_link_status(struct swr_mstr_ctrl *swrm, bool active)
 		dev_err_ratelimited(swrm->dev, "%s: link status not %s\n", __func__,
 			active ? "connected" : "disconnected");
 
+#ifdef OPLUS_ARCH_EXTENDS
+	pr_debug("%s: retry %d swrm->state %d  ssr_time %lld\n", __func__,
+			retry, swrm->state, ssr_time);
+	if ((retry <= 0) && (swrm->state == SWR_MSTR_UP) &&
+		(ktime_after(ktime_get(), ktime_add_ms(ssr_time, SWRM_FIFO_FAILED_LIMIT_MS)))) {
+		ssr_time = ktime_get();
+		schedule_delayed_work(&swrm->adsp_ssr_work, msecs_to_jiffies(200));
+	}
+#endif /* OPLUS_ARCH_EXTENDS */
+
 	return ret;
 }
 
@@ -953,9 +984,17 @@ static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr)
 					break;
 			}
 		}
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		if ((fifo_outstanding_cmd == 0) && strncmp(dev_name(swrm->dev), "bt_swr_mstr", sizeof("bt_swr_mstr"))) {
+			dev_err_ratelimited(swrm->dev,
+					"%s err read underflow\n", __func__);
+			ratelimited_fb("payload@@%s %s:err read underflow", dev_driver_string(swrm->dev), dev_name(swrm->dev));
+		}
+#else /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 		if (fifo_outstanding_cmd == 0)
 			dev_err_ratelimited(swrm->dev,
 					"%s err read underflow\n", __func__);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 	} else {
 		/* Check for fifo overflow during write */
 		/* Check no of outstanding commands in fifo before write */
@@ -973,10 +1012,39 @@ static void swrm_wait_for_fifo_avail(struct swr_mstr_ctrl *swrm, int swrm_rd_wr)
 					break;
 			}
 		}
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+		if (fifo_outstanding_cmd == swrm->wr_fifo_depth) {
+			dev_err_ratelimited(swrm->dev,
+					"%s err write overflow\n", __func__);
+			ratelimited_fb("payload@@%s %s:err write overflow", dev_driver_string(swrm->dev), dev_name(swrm->dev));
+		}
+#else /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 		if (fifo_outstanding_cmd == swrm->wr_fifo_depth)
 			dev_err_ratelimited(swrm->dev,
 					"%s err write overflow\n", __func__);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 	}
+
+#ifdef OPLUS_ARCH_EXTENDS
+	if ((swrm_rd_wr && (fifo_outstanding_cmd == 0)) ||
+		(!swrm_rd_wr && (fifo_outstanding_cmd == swrm->wr_fifo_depth))) {
+		if (adsp_ssr_count > 0) {
+			adsp_ssr_count--;
+		}
+	} else {
+		adsp_ssr_count = SWR_ADSP_RETRY_COUNT;
+	}
+
+	pr_debug("%s: fifo_retry_count %d adsp_ssr_count %d swrm->state %d  ssr_time %lld\n", __func__,
+			fifo_retry_count, adsp_ssr_count, swrm->state, ssr_time);
+
+	if ((adsp_ssr_count <= 0) && (swrm->state == SWR_MSTR_UP) &&
+		(ktime_after(ktime_get(), ktime_add_ms(ssr_time, SWRM_FIFO_FAILED_LIMIT_MS)))) {
+		ssr_time = ktime_get();
+		adsp_ssr_count = SWR_ADSP_RETRY_COUNT;
+		schedule_delayed_work(&swrm->adsp_ssr_work, msecs_to_jiffies(200));
+	}
+#endif /* OPLUS_ARCH_EXTENDS */
 }
 
 static int swrm_cmd_fifo_rd_cmd(struct swr_mstr_ctrl *swrm, int *cmd_data,
@@ -1026,6 +1094,14 @@ retry_read:
 				rcmd_id: 0x%x, dev_num: 0x%x, cmd_data: 0x%x\n",
 				__func__, reg_addr, cmd_id, swrm->rcmd_id,
 				dev_addr, *cmd_data);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			if (strncmp(dev_name(swrm->dev), "bt_swr_mstr", sizeof("bt_swr_mstr"))) {
+				ratelimited_fb("payload@@%s %s:read failed,reg=0x%x,cmd_id=0x%x,"
+					"rcmd_id=0x%x,dev_num=0x%x,cmd_data=0x%x",
+					dev_driver_string(swrm->dev), dev_name(swrm->dev),
+					reg_addr, cmd_id, swrm->rcmd_id, dev_addr, *cmd_data);
+			}
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 
 			dev_err_ratelimited(swrm->dev,
 				"%s: failed to read fifo\n", __func__);
@@ -1892,18 +1968,21 @@ static void swrm_apply_port_config(struct swr_master *master)
 /* also, if the device enumerates on the bus when active bank is 1, issue bank switch */
 static void swrm_initialize_clk_base_scale(struct swr_mstr_ctrl *swrm, u8 dev_num)
 {
-	int clk_scale, n_row, n_col;
-	int cls_id;
-	int frame_shape;
-	u8 active_bank;
+	int clk_scale = 0, n_row = 0, n_col = 0;
+	int cls_id = 0, addr_id = 0;
+	long dev_id = 0;
+	int frame_shape = 0;
+	u8 active_bank = 0;
 
 	if (dev_num == 0)
 		return;
 
 	cls_id = swr_master_read(swrm, SWRM_ENUMERATOR_SLAVE_DEV_ID_2(dev_num));
+	addr_id = swr_master_read(swrm, SWRM_ENUMERATOR_SLAVE_DEV_ID_1(dev_num));
+	dev_id = SWRS_DEVID_COMBINE(cls_id, addr_id);
 
-	if (cls_id & 0xFF00) {
-
+	if ((cls_id & 0xFF00) ||
+		(dev_id == WCD9378_TX_DEVID || dev_id == WCD9378_RX_DEVID)) {
 		active_bank = get_active_bank_num(swrm);
 		if (active_bank != 0) {
 			frame_shape = swr_master_read(swrm, SWRM_MCP_FRAME_CTRL_BANK(active_bank));
@@ -1927,7 +2006,6 @@ static void swrm_initialize_clk_base_scale(struct swr_mstr_ctrl *swrm, u8 dev_nu
 	}
 }
 
-#define SLAVE_DEV_CLASS_ID  GENMASK(45, 40)
 static int swrm_update_clk_base_and_scale(struct swr_master *master, u8 inactive_bank)
 {
 	struct swr_device *swr_dev;
@@ -1940,8 +2018,7 @@ static int swrm_update_clk_base_and_scale(struct swr_master *master, u8 inactive
 		if (swr_dev->dev_num == 0)
 			continue;
 
-		/* check class_id if 1 */
-		if (!(swr_dev->addr & SLAVE_DEV_CLASS_ID))
+		if (!swr_dev->paging_support)
 			continue;
 
 		/* v1.2 slave could be attached to the bus */
@@ -2089,6 +2166,7 @@ static int swrm_slvdev_datapath_control(struct swr_master *master, bool enable)
 	swrm_update_clk_base_and_scale(master, bank);
 	enable_bank_switch(swrm, bank, n_row, n_col);
 	inactive_bank = bank ? 0 : 1;
+	swrm_update_clk_base_and_scale(master, inactive_bank);
 
 	if (enable)
 		swrm_copy_data_port_config(master, inactive_bank);
@@ -2423,7 +2501,7 @@ static void swrm_process_change_enum_slave_status(struct swr_mstr_ctrl *swrm)
 	}
 
 	num_enum_devs = 0;
-	memset(enum_devnum, 0, sizeof(SWR_MAX_DEV_NUM * 2 * sizeof(u8)));
+	memset(enum_devnum, 0, (SWR_MAX_DEV_NUM * 2 * sizeof(u8)));
 	chg_sts = swrm_check_slave_change_status(swrm, enum_devnum, &num_enum_devs);
 
 	if (num_enum_devs == 0)
@@ -2434,8 +2512,26 @@ static void swrm_process_change_enum_slave_status(struct swr_mstr_ctrl *swrm)
 		devnum = enum_devnum[i][0];
 		switch (chg_sts) {
 		case SWR_NOT_PRESENT:
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			dev_info(swrm->dev,
+				"%s: device %d got detached, dev_up:%d, state:%d\n",
+				__func__, devnum, swrm->dev_up, swrm->state);
+			if (!strcmp(dev_name(swrm->dev), "va_swr_ctrl") && (devnum == 1)) {
+				ratelimited_fb("payload@@%s %s:device %d got detached",
+					dev_driver_string(swrm->dev), dev_name(swrm->dev), devnum);
+			}
+#else /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			dev_dbg(swrm->dev,
 					"%s: device %d got detached\n", __func__, devnum);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
+#ifdef OPLUS_ARCH_EXTENDS
+			if ((!strcmp(dev_name(swrm->dev), "va_swr_ctrl") || !strcmp(dev_name(swrm->dev), "rx_swr_ctrl")) && (devnum == 1) &&
+				(swrm->state != SWR_MSTR_SSR && swrm->dev_up) &&
+				(ktime_after(ktime_get(), ktime_add_ms(ssr_time, SWRM_FIFO_FAILED_LIMIT_MS)))) {
+				ssr_time = ktime_get();
+				schedule_delayed_work(&swrm->adsp_ssr_work, msecs_to_jiffies(200));
+			}
+#endif /* OPLUS_ARCH_EXTENDS */
 			if (devnum == 0) {
 				/*
 				 * enable host irq if device 0 detached
@@ -2487,6 +2583,13 @@ static irqreturn_t swr_mstr_interrupt(int irq, void *dev)
 		goto err_audio_hw_vote;
 	}
 	ret = swrm_clk_request(swrm, true);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+#define SWRM_CLK_FAILED_FB_COUNT    10
+#define SWRM_CLK_FAILED_FB_LIMIT_MS 800
+	ratelimited_count_limit_fb(ret, SWRM_CLK_FAILED_FB_COUNT, SWRM_CLK_FAILED_FB_LIMIT_MS,
+		"payload@@%s %s:swrm clk failed,ret=%d",
+		dev_driver_string(dev), dev_name(dev), ret);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 	if (ret) {
 		dev_err_ratelimited(dev, "%s: swrm clk failed\n", __func__);
 		ret = IRQ_NONE;
@@ -2566,18 +2669,32 @@ handle_irq:
 			dev_err_ratelimited(swrm->dev,
 				"%s: SWR read FIFO overflow fifo status %x\n",
 				__func__, value);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			ratelimited_fb("payload@@%s %s:SWR read FIFO overflow fifo status 0x%x",
+				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS(swrm->ee_val));
 			dev_err_ratelimited(swrm->dev,
 				"%s: SWR read FIFO underflow fifo status %x\n",
 				__func__, value);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			if (strncmp(dev_name(swrm->dev), "bt_swr_mstr", sizeof("bt_swr_mstr"))) {
+				ratelimited_fb("payload@@%s %s:SWR read FIFO underflow fifo status 0x%x",
+					dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
+			}
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			break;
 		case SWRM_INTERRUPT_STATUS_WR_CMD_FIFO_OVERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS(swrm->ee_val));
 			dev_err_ratelimited(swrm->dev,
 				"%s: SWR write FIFO overflow fifo status %x\n",
 				__func__, value);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			ratelimited_fb("payload@@%s %s:SWR write FIFO overflow fifo status 0x%x",
+				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			break;
 		case SWRM_INTERRUPT_STATUS_CMD_ERROR:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS(swrm->ee_val));
@@ -2585,6 +2702,10 @@ handle_irq:
 			"%s: SWR CMD error, fifo status 0x%x, flushing fifo\n",
 					__func__, value);
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			ratelimited_fb("payload@@%s %s:SWR CMD error, fifo status 0x%x, flushing fifo",
+				dev_driver_string(swrm->dev), dev_name(swrm->dev), value);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			break;
 		case SWRM_INTERRUPT_STATUS_DOUT_PORT_COLLISION:
 			dev_err_ratelimited(swrm->dev,
@@ -2594,6 +2715,10 @@ handle_irq:
 			swr_master_write(swrm,
 				SWRM_INTERRUPT_EN(swrm->ee_val),
 				swrm->intr_mask);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			ratelimited_fb("payload@@%s %s:SWR Port collision detected",
+				dev_driver_string(swrm->dev), dev_name(swrm->dev));
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 			break;
 		case SWRM_INTERRUPT_STATUS_READ_EN_RD_VALID_MISMATCH:
 			dev_dbg(swrm->dev,
@@ -2639,6 +2764,10 @@ handle_irq:
 				dev_err_ratelimited(swrm->dev,
 					"%s: SWR wokeup during clock stop\n",
 					__func__);
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+				ratelimited_fb("payload@@%s %s:SWR wokeup during clock stop, state=%d",
+					dev_driver_string(swrm->dev), dev_name(swrm->dev), swrm->state);
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 				/* It might be possible the slave device gets
 				 * reset and slave interrupt gets missed. So
 				 * re-enable Host IRQ and process slave pending
@@ -3585,6 +3714,10 @@ static int swrm_probe(struct platform_device *pdev)
 	swrm->event_notifier.notifier_call  = swrm_event_notify;
 	//msm_aud_evt_register_client(&swrm->event_notifier);
 
+#ifdef OPLUS_ARCH_EXTENDS
+	INIT_DELAYED_WORK(&swrm->adsp_ssr_work, oplus_daemon_adsp_ssr_work_fn);
+#endif /* OPLUS_ARCH_EXTENDS */
+
 	return 0;
 err_parse_num_dev:
 err_mstr_init_fail:
@@ -3616,6 +3749,11 @@ err_irq_fail:
 
 err_pdata_fail:
 err_memory_fail:
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+	if (ret) {
+		pr_err_fb_fatal_delay("swr-mstr-ctrl.c  %s, ret=%d", __func__, ret);
+	}
+#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 	return ret;
 }
 
@@ -3643,6 +3781,9 @@ static int swrm_remove(struct platform_device *pdev)
 		free_irq(swrm->wake_irq, swrm);
 	}
 	cancel_work_sync(&swrm->wakeup_work);
+#ifdef OPLUS_ARCH_EXTENDS
+	cancel_delayed_work_sync(&swrm->adsp_ssr_work);
+#endif /* OPLUS_ARCH_EXTENDS */
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	swr_unregister_master(&swrm->master);
@@ -4325,6 +4466,14 @@ done:
 			__func__, id);
 		break;
 	}
+
+#ifdef OPLUS_ARCH_EXTENDS
+	if (swrm->state == SWR_MSTR_SSR) {
+		ssr_time = ktime_get();
+		adsp_ssr_count = SWR_ADSP_RETRY_COUNT;
+	}
+#endif /* OPLUS_ARCH_EXTENDS */
+
 	return ret;
 }
 EXPORT_SYMBOL(swrm_wcd_notify);

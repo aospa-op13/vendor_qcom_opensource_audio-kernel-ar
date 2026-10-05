@@ -27,6 +27,7 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/q6_notifier_dlkm.ko\
 	$(KERNEL_MODULES_OUT)/snd_event_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd_core_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/mbhc_dlkm.ko \
+	$(KERNEL_MODULES_OUT)/sdca_registers_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd9xxx_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/stub_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/machine_dlkm.ko
@@ -66,6 +67,10 @@ ifeq ($(call is-board-platform-in-list, holi blair), true)
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/wcd938x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd938x_slave_dlkm.ko
 endif
+#ifdef OPLUS_ARCH_EXTENDS
+#add for oplus audio extends driver
+-include $(TOP)/vendor/qcom/opensource/audio-kernel/oplus/oplus_audio_kernel_modules.mk
+#endif /* OPLUS_ARCH_EXTENDS */
 endif
 else
 ifeq ($(call is-board-platform-in-list, gen4 msmnile), true)

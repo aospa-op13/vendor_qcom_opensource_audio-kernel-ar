@@ -26,6 +26,7 @@ def define_sun():
             "swr_dmic_dlkm",
             "wcd9xxx_dlkm",
             "swr_haptics_dlkm",
+	    "sdca_registers_dlkm",
             "stub_dlkm",
             "hdmi_dlkm",
             "lpass_cdc_dlkm",
@@ -42,6 +43,25 @@ def define_sun():
             "wcd939x_slave_dlkm",
             "wcd9378_dlkm",
             "wcd9378_slave_dlkm",
+#ifdef OPLUS_ARCH_EXTENDS
+#add for oplus audio extends driver
+            "oplus_audio_extend",
+            "oplus_audio_aw882xx",
+            "oplus_audio_tfa98xx_v6",
+            "oplus_audio_sipa",
+            "oplus_audio_sipa_tuning",
+            "oplus_audio_pa_manager",
+#add for oplus audio aw87xxx driver
+            "oplus_audio_aw87xxx",
+#endif /* OPLUS_ARCH_EXTENDS */
+#ifdef CONFIG_AUDIO_DAEMON_KERNEL_QCOM
+#add for oplus audio daemon kernel
+            "oplus_audio_daemon",
+#endif /* CONFIG_AUDIO_DAEMON_KERNEL_QCOM */
+#ifdef CONFIG_AUDIO_NETLINK_KERNEL
+#add for oplus audio netlink kernel
+            "oplus_audio_netlink",
+#endif /* CONFIG_AUDIO_NETLINK_KERNEL */
             "lpass_bt_swr_dlkm",
 			"qmp_dlkm"
         ],
@@ -61,5 +81,12 @@ def define_sun():
             "CONFIG_AUDIO_BTFM_PROXY",
             "CONFIG_MSM_EXT_DISPLAY",
             "CONFIG_SND_SOC_QMP",
+	    "CONFIG_SND_SOC_SDCA_REGISTERS",
+#ifdef OPLUS_ARCH_EXTENDS
+#add for oplus audio extends driver
+            "OPLUS_ARCH_EXTENDS",
+            "OPLUS_FEATURE_SPEAKER_MUTE",
+            "OPLUS_FEATURE_RINGTONE_HAPTIC",
+#endif /* OPLUS_ARCH_EXTENDS */
         ]
     )
