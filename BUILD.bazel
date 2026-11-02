@@ -86,12 +86,19 @@ ddk_headers(
     name = "sipa_headers",
     hdrs = glob([
         "oplus/codecs/sipa/*.h"
-    ])
+    ]),
+    includes = ["oplus/codecs/sipa"]
 )
 ddk_headers(
     name = "oplus_speaker_headers",
     hdrs = glob([
         "oplus/qcom/oplus_speaker_manager/*.h"
+    ])
+)
+ddk_headers(
+    name = "aw87xxx_headers",
+    hdrs = glob([
+        "oplus/codecs/aw87xxx/*.h"
     ])
 )
 #endif /* OPLUS_ARCH_EXTENDS */

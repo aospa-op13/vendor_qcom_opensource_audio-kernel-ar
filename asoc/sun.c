@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -58,6 +58,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #endif /* OPLUS_ARCH_EXTENDS */
+
+#ifdef CONFIG_SND_SOC_SIPA
+#include "sipa_aux_dev_if.h"
+#endif /* CONFIG_SND_SOC_SIPA */
 
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
 #include "feedback/oplus_audio_kernel_fb.h"
@@ -150,6 +154,7 @@ struct msm_asoc_mach_data {
 	struct mutex dmic_cnt_op_lock;
 #ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
 	int pa_manager;
+	int rcv_as_l_spk;
 #endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
 #endif /* OPLUS_ARCH_EXTENDS */
 };
@@ -165,6 +170,10 @@ static int dmic_6_7_gpio_cnt;
 #if IS_ENABLED(CONFIG_AUDIO_EXTEND_DRV)
 /*Add for oplus extend aduio*/
 extern void extend_codec_i2s_be_dailinks(struct device *dev, struct snd_soc_dai_link *dailink, size_t size);
+#endif /* CONFIG_AUDIO_EXTEND_DRV */
+
+#ifdef OPLUS_ARCH_EXTENDS
+extern void oplus_set_sound_card_init_done(void);
 #endif /* CONFIG_AUDIO_EXTEND_DRV */
 
 static void *def_wcd_mbhc_cal(void);
@@ -2457,6 +2466,16 @@ static int msm_int_wsa2_init(struct snd_soc_pcm_runtime *rtd)
 	return msm_int_wsa884x_2_init(rtd);
 }
 
+#ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
+static const struct snd_soc_dapm_route qcom_rx_audio_map[] = {
+	{"AUX_OUT", NULL, "RX INT2 MIX2"},
+};
+/* 2024/11/28, modify for wcd9378 use damp avoid noise issues */
+static const struct snd_soc_dapm_route qcom_wcd9378_rx_audio_map[] = {
+	{"AUX PGA", NULL, "AUX_MIXER"},
+};
+#endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
+
 static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int codec_variant = -1;
@@ -2536,26 +2555,6 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	dapm = snd_soc_component_get_dapm(component);
 	card = component->card->snd_card;
 
-#ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
-/* 2025/02/12  added for audio bring up*/
-	// 2023/08/16  added for audio bring up
-	if (pdata->pa_manager == 1) {
-		ret = oplus_add_pa_manager_snd_controls(component);
-		if (ret < 0) {
-			pr_err("%s: add oplus pa mangerr snd controls failed: %d\n",
-				__func__, ret);
-			return ret;
-		}
-
-		ret = oplus_add_analog_pa_manager_dapm(dapm);
-		if (ret < 0) {
-			pr_err("%s: add oplus pa manager dapm failed: %d\n",
-			__func__, ret);
-			return ret;
-		}
-	}
-#endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
-
 	snd_soc_dapm_ignore_suspend(dapm, "EAR");
 	if (pdata->wcd_used != WCD939X_DEV_INDEX)
 		snd_soc_dapm_ignore_suspend(dapm, "AUX");
@@ -2566,6 +2565,59 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC3");
 	snd_soc_dapm_ignore_suspend(dapm, "AMIC4");
 	snd_soc_dapm_sync(dapm);
+
+#ifdef CONFIG_SND_SOC_OPLUS_PA_MANAGER
+	// 2023/08/16  added for audio bring up
+	if (pdata->pa_manager == 1) {
+		ret = oplus_add_pa_manager_snd_controls(component);
+		if (ret < 0) {
+			pr_err("%s: add oplus pa manager snd controls failed: %d\n",
+				__func__, ret);
+			return ret;
+		}
+
+		/* 2024/11/28, modify for wcd9378 use damp avoid noise issues */
+		if (pdata->wcd_used == WCD9378_DEV_INDEX) {
+			snd_soc_dapm_add_routes(dapm, qcom_rx_audio_map, ARRAY_SIZE(qcom_rx_audio_map));
+			ret = oplus_add_analog_pa_manager_wcd9378_dapm(dapm);
+			if (ret < 0) {
+				pr_err("%s: add oplus pa manager wcd9378 dapm failed: %d\n",
+					__func__, ret);
+				return ret;
+			}
+			if (pdata->rcv_as_l_spk == 1) {
+				set_pa_index_order(pdata->rcv_as_l_spk);
+			}
+		} else {
+			ret = oplus_add_analog_pa_manager_dapm(dapm);
+			if (ret < 0) {
+				pr_err("%s: add oplus pa manager dapm failed: %d\n",
+					__func__, ret);
+				return ret;
+			}
+			if (pdata->rcv_as_l_spk == 1) {
+				set_pa_index_order(pdata->rcv_as_l_spk);
+			}
+		}
+	} else {
+		/* 2024/11/28, modify for wcd9378 use damp avoid noise issues */
+		if (pdata->wcd_used == WCD9378_DEV_INDEX) {
+			ret = snd_soc_dapm_add_routes(dapm, qcom_wcd9378_rx_audio_map,
+				ARRAY_SIZE(qcom_wcd9378_rx_audio_map));
+			if (ret < 0) {
+				pr_err("%s: failed to add wcd9378 routes\n", __func__);
+				return ret;
+			}
+		}
+
+		ret = snd_soc_dapm_add_routes(dapm, qcom_rx_audio_map,
+			ARRAY_SIZE(qcom_rx_audio_map));
+		if (ret < 0) {
+			pr_err("%s: failed to add routes\n", __func__);
+			return ret;
+		}
+	}
+#endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
 
 	pdata = snd_soc_card_get_drvdata(component->card);
 	if (!pdata->codec_root) {
@@ -2837,6 +2889,9 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct clk *lpass_audio_hw_vote = NULL;
 	const struct of_device_id *match;
+#ifdef CONFIG_SND_SOC_SIPA
+	u32 pvdd_limit_supported = 0;
+#endif /* CONFIG_SND_SOC_SIPA */
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "%s: No platform supplied from device tree\n", __func__);
@@ -2856,6 +2911,14 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	} else {
 		pr_err("%s not use oplus pa manager.\n", __func__);
 		pdata->pa_manager = 0;
+	}
+	ret = of_property_read_u32(pdev->dev.of_node, "oplus,rcv_as_l_spk",
+				&pdata->rcv_as_l_spk);
+	if (!ret) {
+		pr_info("%s rcv_as_l_spk: %d.\n", __func__, pdata->rcv_as_l_spk);
+	} else {
+		pr_err("%s rcv_as_l_spk.\n", __func__);
+		pdata->rcv_as_l_spk = 0;
 	}
 #endif /* CONFIG_SND_SOC_OPLUS_PA_MANAGER */
 
@@ -2935,8 +2998,23 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "property %s not detected in node %s\n",
 			"wcd939x-i2c-handle", pdev->dev.of_node->full_name);
 
-	if (pdata->wcd_usbss_handle)
+	if ((pdata->wcd_usbss_handle) || (pdata->fsa_handle))
 		wcd_mbhc_cfg.swap_gnd_mic = msm_usbc_swap_gnd_mic;
+
+#ifdef CONFIG_SND_SOC_SIPA
+	ret = of_property_read_u32(pdev->dev.of_node, "si,sia-pvdd-limit-supported", &pvdd_limit_supported);
+	if (!ret) {
+		pr_info("%s pvdd_limit_supported: %d.\n", __func__, pvdd_limit_supported);
+		if(pvdd_limit_supported) {
+			ret = soc_aux_init_only_sia81xx(pdev, card);
+			if (ret) {
+				pr_err("%s add sipa pvdd limit control fail.\n", __func__);
+			}
+		}
+	} else {
+		pr_err("%s not use sipa pvdd limit.\n", __func__);
+	}
+#endif /* CONFIG_SND_SOC_SIPA */
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
@@ -2997,6 +3075,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			__func__, ret);
 
 	is_initial_boot = true;
+
+#ifdef OPLUS_ARCH_EXTENDS
+	oplus_set_sound_card_init_done();
+#endif /* OPLUS_ARCH_EXTENDS */
 
 	/* change card status to ONLINE */
 	dev_dbg(&pdev->dev, "%s: setting snd_card to ONLINE\n", __func__);
